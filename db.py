@@ -60,7 +60,7 @@ def register_user(user_id: int, chat_id: int, username: str = None):
     conn.close()
 
 
-def get_user_data(user_id: int) -> list:
+def get_user_data(user_id: int):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
@@ -72,6 +72,25 @@ def get_user_data(user_id: int) -> list:
     """, (user_id,))
 
     data = cursor.fetchall()
+    conn.close()
+    return data
+
+
+def get_weekly_data(user_id: int, start_date: datetime):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    start_date_iso = start_date.isoformat()
+
+    cursor.execute("""
+        SELECT timestamp, mood_score
+        FROM mood_entries 
+        WHERE user_id = ? AND timestamp >= ? 
+        ORDER BY timestamp
+    """, (user_id, start_date_iso))
+
+    columns = [desc[0] for desc in cursor.description]
+    data = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
     conn.close()
     return data
 
