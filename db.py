@@ -3,7 +3,6 @@ from datetime import datetime
 
 DB_PATH = "psychologist_bot.db"
 
-
 def initialize_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
