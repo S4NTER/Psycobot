@@ -72,23 +72,9 @@ async def main():
     dp.message.register(command_track_handler, Command("track"))
     dp.message.register(command_report_handler, Command("report"))
 
-    dp.message.register(process_mood, StateFilter(Tracking.waiting_for_mood), F.text.regexp(r"^(10|[1-9])$"))
-    dp.message.register(process_trigger, StateFilter(Tracking.waiting_for_trigger))
-    dp.message.register(process_thought, StateFilter(Tracking.waiting_for_thought))
-    
-    dp.message.register(
-        process_mood,
-        StateFilter(Tracking.waiting_for_mood),
-        F.text.regexp(r'^(10|[1-9])$')  # Опционально: проверка regex
-    )
-    dp.message.register(
-        process_trigger,
-        StateFilter(Tracking.waiting_for_trigger)
-    )
-    dp.message.register(
-        process_thought,
-        StateFilter(Tracking.waiting_for_thought)
-    )
+    dp.message.register(process_mood,StateFilter(Tracking.waiting_for_mood),F.text.regexp(r'^(10|[1-9])$'))
+    dp.message.register(process_trigger,StateFilter(Tracking.waiting_for_trigger))
+    dp.message.register(process_thought,StateFilter(Tracking.waiting_for_thought))
 
     await dp.start_polling(bot)
 
