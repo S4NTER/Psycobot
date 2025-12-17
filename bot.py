@@ -4,6 +4,8 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from db import initialize_db, save_entry
+initialize_db()
 
 TOKEN = os.getenv("BOT_TOKEN")
 
@@ -54,14 +56,8 @@ async def process_trigger(message: types.Message, state: FSMContext):
 
 async def process_thought(message: types.Message, state: FSMContext):
     thought_text = message.text
-    if len(thought_text.strip()) < 2:
-        await message.answer("Пожалуйста, опиши мысль подробнее.")
-        return
-
     user_data = await state.get_data()
-    await message.answer(
-        f"Настроение: {user_data['mood_score']}Триггер: {user_data['trigger_text']} Мысль: {thought_text} "
-    )
+    save_entry(user_id=message.from_user.id,mood_score=user_data["mood_score"],trigger_text=user_data["trigger_text"],thought_text=thought_text)
     await state.clear()
 
 async def main():
