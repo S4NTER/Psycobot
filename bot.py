@@ -5,6 +5,10 @@ from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from db import initialize_db, save_entry, register_user
+from datetime import timedelta
+from visualization import generate_mood_chart
+from aiogram.types import FSInputFile
+
 initialize_db()
 
 TOKEN = os.getenv("BOT_TOKEN")
