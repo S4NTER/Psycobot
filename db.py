@@ -38,6 +38,7 @@ def save_entry(user_id: int, mood_score: int, trigger_text: str, thought_text: s
     conn.close()
     print(f"Запись сохранена для пользователя {user_id}")
 
-if name == "main":
+
+if __name__ == "main":
     initialize_db()
     save_entry(12345, 7, "Тестовый триггер", "Тестовая мысль")
