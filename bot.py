@@ -4,7 +4,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from db import initialize_db, save_entry
+from db import initialize_db, save_entry, register_user
 initialize_db()
 
 TOKEN = os.getenv("BOT_TOKEN")
@@ -18,8 +18,14 @@ class Tracking(StatesGroup):
     waiting_for_thought = State()
 
 async def command_start_handler(message: types.Message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    username = message.from_user.username
+
+    register_user(user_id, chat_id, username)
+
     await message.answer(
-        f"Привет, {message.from_user.full_name}! Я твой Карманный Психолог. Нажми /track, чтобы начать запись."
+        f"Привет, {message.from_user.full_name}! Ты зарегистрирован в системе."
     )
 
 async def command_track_handler(message: types.Message, state: FSMContext):
