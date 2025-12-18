@@ -1,7 +1,6 @@
 import sqlite3
 from datetime import datetime
-
-DB_PATH = "psychologist_bot.db"
+from config import DB_PATH
 
 
 def initialize_db():
