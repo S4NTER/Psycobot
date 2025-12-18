@@ -74,6 +74,7 @@ def get_user_data(user_id: int):
     conn.close()
     return data
 
+
 def get_weekly_data(user_id: int, start_date: datetime):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()

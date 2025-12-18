@@ -6,6 +6,8 @@ from aiogram import types, F
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import FSInputFile, ReplyKeyboardRemove
+from aiogram.types import LabeledPrice, Message
+from aiogram.types import PreCheckoutQuery
 
 import db
 import texts
@@ -16,10 +18,12 @@ from AI import ask_gpt
 logger = logging.getLogger(__name__)
 db.initialize_db()
 
+
 class Tracking(StatesGroup):
     waiting_for_mood = State()
     waiting_for_trigger = State()
     waiting_for_thought = State()
+
 
 async def command_start_handler(message: types.Message):
     user_id = message.from_user.id
@@ -87,51 +91,6 @@ async def process_thought(message: types.Message, state: FSMContext):
     await message.answer(saved_message, reply_markup=keyboards.get_main_menu_keyboard())
 
 
-async def command_ai_advice_handler(message: types.Message, user_id: int):
-    start_date = datetime.now() - timedelta(days=1)
-    data = db.get_weekly_data(user_id, start_date)
-
-    if not data:
-        await message.answer(texts.NO_RECENT_DATA, reply_markup=keyboards.get_main_menu_keyboard())
-        return
-
-    latest_entry = data[-1]
-    processing_msg = await message.answer(texts.PROCESSING_ADVICE, parse_mode="Markdown")
-
-    try:
-        advice = await ask_gpt(
-            mood_score=latest_entry['mood_score'],
-            trigger=latest_entry['trigger_text'],
-            thought=latest_entry['thought_text']
-        )
-
-        timestamp = datetime.fromisoformat(latest_entry['timestamp'])
-        time_str = timestamp.strftime('%d.%m.%Y %H:%M')
-
-        response_text = texts.AI_ADVICE_TEMPLATE.format(
-            time=time_str,
-            mood=latest_entry['mood_score'],
-            trigger=latest_entry['trigger_text'],
-            thought=latest_entry['thought_text'],
-            advice=advice
-        )
-
-        await message.answer(
-            response_text,
-            parse_mode="Markdown",
-            reply_markup=keyboards.get_main_menu_keyboard()
-        )
-
-    except Exception as e:
-        logger.error(f"Error in command_ai_advice_handler: {e}")
-        await message.answer(texts.ERRORS["ai_error"], reply_markup=keyboards.get_main_menu_keyboard())
-    finally:
-        try:
-            await processing_msg.delete()
-        except:
-            pass
-
-
 async def command_report_handler(message: types.Message, user_id: int):
     start_date = datetime.now() - timedelta(days=7)
     data = db.get_weekly_data(user_id, start_date)
@@ -174,11 +133,85 @@ async def callback_query_handler(callback: types.CallbackQuery, state: FSMContex
     elif action == "report":
         await callback.answer("Формирую отчёт")
         await command_report_handler(callback.message, callback.from_user.id)
+    elif action == "request_ai_advice":
+        await callback.answer("Проверяем доступ")
+        await show_payment_message(callback.message)
+    elif action == "get_ai_advice":
+        await callback.answer("Получаю совет")
+        await command_ai_advice_handler(callback.message, callback.from_user.id)
+    elif action == "back_to_menu":
+        await callback.answer("Возвращаюсь в меню")
+        await command_start_handler(callback.message)
+    elif action == "payment":
+        await callback.answer("Открываю оплату")
+        await send_invoice_handler(callback.message)
     elif action == "ai_advice":
         await callback.answer("Анализирую записи и готовлю совет")
         await command_ai_advice_handler(callback.message, callback.from_user.id)
     elif action == "help":
         await callback.answer("Открываю справку")
         await help_handler(callback.message)
+    elif action == "pay_ai":
+        await callback.answer("Принимаю оплату")
+        await send_invoice_handler(callback.message)
+    elif action == "cancel_payment":
+        await callback.answer("Оплата отменена")
+        await callback.message.edit_text(
+            "Оплата отменена. Что дальше?",
+            reply_markup=keyboards.get_main_menu_keyboard()
+        )
     else:
         await callback.answer(texts.ERRORS["unknown_command"])
+
+
+async def send_invoice_handler(message: types.Message):
+    prices = [LabeledPrice(label='XTR', amount=1)]
+    await message.answer_invoice(
+        title="Оплата за совет AI-ассистента",
+        description="Поддержать канал на 1 звезду!",
+        prices=prices,
+        provider_token="",
+        payload=f"channel_support{message.from_user.id}",
+        currency="XTR",
+    )
+
+
+async def pre_checkout_handler(pre_checkout_query: PreCheckoutQuery):
+    await pre_checkout_query.answer(ok=True)
+
+
+async def command_ai_advice_handler(message: types.Message, user_id: int):
+    start_date = datetime.now() - timedelta(days=1)
+    data = db.get_weekly_data(user_id, start_date)
+
+    if not data:
+        await message.answer(texts.NO_RECENT_DATA)
+        return
+
+    latest_entry = data[-1]
+    advice = await ask_gpt(
+        mood_score=latest_entry['mood_score'],
+        trigger=latest_entry['trigger_text'],
+        thought=latest_entry['thought_text']
+    )
+
+    await message.answer(f"🤖 Совет AI:\n{advice}", reply_markup=keyboards.get_main_menu_keyboard())
+
+
+async def succes_payment_handler(message: types.Message):
+    await message.answer(
+        "✅ Оплата прошла успешно! Теперь у вас есть доступ к AI-советам.",
+        reply_markup=keyboards.get_ai_access_keyboard()
+    )
+
+
+async def show_payment_message(message: types.Message):
+    await message.answer(
+        texts.PAYMENT_REQUEST_TEXT,
+        parse_mode="Markdown",
+        reply_markup=keyboards.get_payment_keyboard()
+    )
+
+
+async def command_ai_advice_command_handler(message: types.Message):
+    await show_payment_message(message)

@@ -1,8 +1,10 @@
 import matplotlib
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from datetime import datetime
 import os
+
 
 def generate_mood_chart(data: list, output_path: str):
     filtered_data = []
@@ -33,7 +35,7 @@ def generate_mood_chart(data: list, output_path: str):
     plt.xticks(rotation=45, ha='right')
     plt.grid(True, linestyle='--', alpha=0.7)
     avg_score = sum(scores) / len(scores)
-    plt.axhline(avg_score, color='r', linestyle='--', linewidth=1,label=f'Среднее: {avg_score:.1f}')
+    plt.axhline(avg_score, color='r', linestyle='--', linewidth=1, label=f'Среднее: {avg_score:.1f}')
     plt.legend()
     plt.tight_layout()
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)

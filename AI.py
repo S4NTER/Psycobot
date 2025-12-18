@@ -9,6 +9,7 @@ from config import (
 
 logger = logging.getLogger(__name__)
 
+
 async def ask_gpt(mood_score: int, trigger: str, thought: str):
     headers = {
         "Authorization": f"Api-Key {YANDEX_GPT_API_KEY}",
