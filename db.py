@@ -28,7 +28,7 @@ def save_entry(user_id: int, mood_score: int, trigger_text: str, thought_text: s
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     timestamp = datetime.now().isoformat()
-
+    print(timestamp)
     cursor.execute("""
         INSERT INTO mood_entries (user_id, timestamp, mood_score, trigger_text, thought_text)
         VALUES (?, ?, ?, ?, ?)
@@ -75,24 +75,29 @@ def get_user_data(user_id: int):
     conn.close()
     return data
 
-
 def get_weekly_data(user_id: int, start_date: datetime):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     start_date_iso = start_date.isoformat()
 
     cursor.execute("""
-        SELECT timestamp, mood_score
+        SELECT timestamp, mood_score, trigger_text, thought_text
         FROM mood_entries 
         WHERE user_id = ? AND timestamp >= ? 
         ORDER BY timestamp
     """, (user_id, start_date_iso))
 
-    columns = [desc[0] for desc in cursor.description]
-    data = [dict(zip(columns, row)) for row in cursor.fetchall()]
-
+    data = cursor.fetchall()
     conn.close()
-    return data
+    result = []
+    for row in data:
+        result.append({
+            'timestamp': row[0],
+            'mood_score': row[1],
+            'trigger_text': row[2] if row[2] else '',
+            'thought_text': row[3] if row[3] else ''
+        })
+    return result
 
 
 if __name__ == "main":
