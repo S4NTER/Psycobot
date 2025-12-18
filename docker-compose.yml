@@ -1,0 +1,32 @@
+
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: psychologist_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./psychologist_bot.db:/app/psychologist_bot.db
+    networks:
+      - bot_network
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: psychologist_web
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://api:8000
+    networks:
+      - bot_network
+    depends_on:
+      - api
+
+networks:
+  bot_network:
+    driver: bridge

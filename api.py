@@ -5,16 +5,13 @@ from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-# --- Database Setup (Adapted from db.py for API use) ---
 
 DB_PATH = "psychologist_bot.db"
 
 def get_db_connection():
-    """Returns a new database connection."""
     return sqlite3.connect(DB_PATH)
 
 def get_user_data(user_id: int) -> Optional[Dict[str, Any]]:
-    """Retrieves a single user's data."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT user_id, chat_id, username, last_report_date FROM users WHERE user_id = ?", (user_id,))
@@ -25,7 +22,6 @@ def get_user_data(user_id: int) -> Optional[Dict[str, Any]]:
     return None
 
 def get_all_users_data() -> List[Dict[str, Any]]:
-    """Retrieves all registered users."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT user_id, chat_id, username, last_report_date FROM users")
@@ -35,7 +31,6 @@ def get_all_users_data() -> List[Dict[str, Any]]:
     return data
 
 def get_all_mood_entries(user_id: int) -> List[Dict[str, Any]]:
-    """Retrieves all mood entries for a user."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -49,7 +44,6 @@ def get_all_mood_entries(user_id: int) -> List[Dict[str, Any]]:
     conn.close()
     return data
 
-# --- Pydantic Models for API Response ---
 
 class User(BaseModel):
     user_id: int
@@ -70,18 +64,14 @@ class UserStats(BaseModel):
     first_entry_date: Optional[str] = None
     last_entry_date: Optional[str] = None
 
-# --- FastAPI Application ---
-
 app = FastAPI(title="Psychologist Bot Worker API")
 
 @app.get("/users", response_model=List[User], summary="Get all registered users")
 def read_users():
-    """Returns a list of all users in the database."""
     return get_all_users_data()
 
 @app.get("/users/{user_id}", response_model=User, summary="Get a specific user's profile")
 def read_user(user_id: int):
-    """Returns the profile data for a specific user ID."""
     user = get_user_data(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -89,22 +79,18 @@ def read_user(user_id: int):
 
 @app.get("/mood_entries/{user_id}", response_model=List[MoodEntry], summary="Get all mood entries for a user")
 def read_mood_entries(user_id: int):
-    """Returns all mood entries for a specific user ID."""
     entries = get_all_mood_entries(user_id)
     if not entries and get_user_data(user_id) is None:
-        # Only raise 404 if the user doesn't exist at all
         raise HTTPException(status_code=404, detail="User not found")
     return entries
 
 @app.get("/stats/{user_id}", response_model=UserStats, summary="Get calculated statistics for a user")
 def get_user_stats(user_id: int):
-    """Calculates and returns key statistics for a user's mood entries."""
     entries = get_all_mood_entries(user_id)
     
     if not entries:
         if get_user_data(user_id) is None:
             raise HTTPException(status_code=404, detail="User not found")
-        # Return zero stats if user exists but has no entries
         return UserStats(
             total_entries=0,
             average_mood=0.0,
