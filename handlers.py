@@ -18,7 +18,6 @@ from AI import ask_gpt
 logger = logging.getLogger(__name__)
 db.initialize_db()
 
-
 class Tracking(StatesGroup):
     waiting_for_mood = State()
     waiting_for_trigger = State()
@@ -34,7 +33,6 @@ async def command_start_handler(message: types.Message):
 
     welcome_text = texts.WELCOME_TEXT.format(name=message.from_user.full_name)
     await message.answer(welcome_text, reply_markup=keyboards.get_main_menu_keyboard())
-
 
 async def command_track_handler(message: types.Message, state: FSMContext):
     await state.set_state(Tracking.waiting_for_mood)
@@ -96,13 +94,13 @@ async def command_report_handler(message: types.Message, user_id: int):
     data = db.get_weekly_data(user_id, start_date)
 
     if not data:
-        await message.answer(texts.NO_WEEKLY_DATA, reply_markup=keyboards.get_main_menu_keyboard())
+        await message.answer(texts.NO_WEEKLY_DATA, reply_markup=keyboards.get_report_keyboard())
         return
 
     chart_path = f"/tmp/mood_chart_{user_id}.png"
 
     if not generate_mood_chart(data, chart_path):
-        await message.answer(texts.ERRORS["chart_error"], reply_markup=keyboards.get_main_menu_keyboard())
+        await message.answer(texts.ERRORS["chart_error"], reply_markup=keyboards.get_report_keyboard())
         return
 
     try:
@@ -110,18 +108,18 @@ async def command_report_handler(message: types.Message, user_id: int):
         await message.answer_photo(
             photo,
             caption=texts.CHART_CAPTION,
-            reply_markup=keyboards.get_main_menu_keyboard()
+            reply_markup=keyboards.get_report_keyboard()
         )
 
         if os.path.exists(chart_path):
             os.remove(chart_path)
     except Exception as e:
         logger.error(f"Error sending chart: {e}")
-        await message.answer(texts.ERRORS["send_chart_error"], reply_markup=keyboards.get_main_menu_keyboard())
+        await message.answer(texts.ERRORS["send_chart_error"], reply_markup=keyboards.get_report_keyboard())
 
 
 async def help_handler(message: types.Message):
-    await message.answer(texts.HELP_TEXT, reply_markup=keyboards.get_main_menu_keyboard())
+    await message.answer(texts.HELP_TEXT, reply_markup=keyboards.get_help_keyboard())
 
 
 async def callback_query_handler(callback: types.CallbackQuery, state: FSMContext):
@@ -133,21 +131,18 @@ async def callback_query_handler(callback: types.CallbackQuery, state: FSMContex
     elif action == "report":
         await callback.answer("Формирую отчёт")
         await command_report_handler(callback.message, callback.from_user.id)
-    elif action == "request_ai_advice":
-        await callback.answer("Проверяем доступ")
-        await show_payment_message(callback.message)
-    elif action == "get_ai_advice":
-        await callback.answer("Получаю совет")
-        await command_ai_advice_handler(callback.message, callback.from_user.id)
     elif action == "back_to_menu":
         await callback.answer("Возвращаюсь в меню")
-        await command_start_handler(callback.message)
+        await callback.message.answer(
+            text=texts.WELCOME_TEXT,
+            reply_markup=keyboards.get_main_menu_keyboard()
+        )
     elif action == "payment":
         await callback.answer("Открываю оплату")
         await send_invoice_handler(callback.message)
     elif action == "ai_advice":
         await callback.answer("Анализирую записи и готовлю совет")
-        await command_ai_advice_handler(callback.message, callback.from_user.id)
+        await check_balance(callback.message, callback.from_user.id)
     elif action == "help":
         await callback.answer("Открываю справку")
         await help_handler(callback.message)
@@ -157,7 +152,7 @@ async def callback_query_handler(callback: types.CallbackQuery, state: FSMContex
     elif action == "cancel_payment":
         await callback.answer("Оплата отменена")
         await callback.message.edit_text(
-            "Оплата отменена. Что дальше?",
+            text=texts.WELCOME_TEXT,
             reply_markup=keyboards.get_main_menu_keyboard()
         )
     else:
@@ -179,31 +174,44 @@ async def send_invoice_handler(message: types.Message):
 async def pre_checkout_handler(pre_checkout_query: PreCheckoutQuery):
     await pre_checkout_query.answer(ok=True)
 
-
-async def command_ai_advice_handler(message: types.Message, user_id: int):
-    start_date = datetime.now() - timedelta(days=1)
-    data = db.get_weekly_data(user_id, start_date)
-
-    if not data:
-        await message.answer(texts.NO_RECENT_DATA)
-        return
-
-    latest_entry = data[-1]
-    advice = await ask_gpt(
-        mood_score=latest_entry['mood_score'],
-        trigger=latest_entry['trigger_text'],
-        thought=latest_entry['thought_text']
-    )
-
-    await message.answer(f"🤖 Совет AI:\n{advice}", reply_markup=keyboards.get_main_menu_keyboard())
-
-
-async def succes_payment_handler(message: types.Message):
+async def success_payment_handler(message: types.Message):
+    print(message.from_user.id)
+    curr_balance = db.get_balance(message.from_user.id)
+    print(f"Текущий баланс до оплаты: {curr_balance}")
+    curr_balance += 1
+    db.set_balance(message.from_user.id,curr_balance)
+    new_balance = db.get_balance(message.from_user.id)
+    print(f"Новый баланс после оплаты: {new_balance}")
     await message.answer(
         "✅ Оплата прошла успешно! Теперь у вас есть доступ к AI-советам.",
         reply_markup=keyboards.get_ai_access_keyboard()
     )
 
+async def check_balance(message: types.Message, user_id: int):
+    curr_balance = db.get_balance(user_id)
+    if curr_balance >= 1:
+        start_date = datetime.now() - timedelta(days=1)
+        data = db.get_weekly_data(user_id, start_date)
+        if not data:
+            await message.answer(texts.NO_RECENT_DATA)
+            return
+
+        latest_entry = data[-1]
+        advice = await ask_gpt(
+            mood_score=latest_entry['mood_score'],
+            trigger=latest_entry['trigger_text'],
+            thought=latest_entry['thought_text']
+        )
+        await message.answer(f"🤖 Совет AI:\n{advice}", reply_markup=keyboards.get_ai_keyboard())
+        curr_balance -= 1
+        db.set_balance(user_id, curr_balance)
+        print(user_id)
+        print(db.get_balance(user_id))
+        return
+    else:
+        await message.answer("Недостаточно оплаченных запросов AI, пополните счет",
+                            reply_markup=keyboards.get_payment_keyboard())
+        return
 
 async def show_payment_message(message: types.Message):
     await message.answer(

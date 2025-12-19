@@ -18,8 +18,18 @@ def initialize_db():
         )
     """)
 
+    cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                chat_id INTEGER NOT NULL,
+                username TEXT,
+                balance INTEGER DEFAULT 0
+            )
+        """)
+
     conn.commit()
     conn.close()
+
     print(f"База данных инициализирована: {DB_PATH}")
 
 
@@ -42,18 +52,9 @@ def register_user(user_id: int, chat_id: int, username: str = None):
     cursor = conn.cursor()
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
-            chat_id INTEGER NOT NULL,
-            username TEXT
-            balance INTEGER NOT NULL
-        )
-    """)
-
-    cursor.execute("""
         INSERT OR REPLACE INTO users (user_id, chat_id, username, balance)
         VALUES (?, ?, ?, ?)
-    """, (user_id, chat_id, username, 0))
+    """, (user_id, chat_id, username, get_balance(user_id)))
 
     conn.commit()
     conn.close()
@@ -66,11 +67,26 @@ def set_balance(user_id: int, balance: int):
     cursor.execute("""
             UPDATE users 
             SET balance = ?
-            WHERE id = ?; 
+            WHERE user_id = ?; 
         """, (balance, user_id))
 
     conn.commit()
     conn.close()
+
+
+def get_balance(user_id: int):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+             SELECT balance FROM users WHERE user_id  = ?
+        """, (user_id,))
+
+    balance = cursor.fetchone()
+    # conn.commit()
+    conn.close()
+
+    return balance[0] if balance else 0
 
 
 def get_user_data(user_id: int):
