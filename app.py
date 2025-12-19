@@ -1,9 +1,21 @@
 import streamlit as st
+st.set_page_config(
+    page_title="Psychologist Bot Dashboard",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 import requests
 import pandas as pd
 from datetime import datetime
 import json
 import os
+import time
+from streamlit_cookies_manager import EncryptedCookieManager
+cookies = EncryptedCookieManager(
+    prefix="psychobot/",
+    password="my_secret_password"
+)
+
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://api:8000")
 ADMIN_TELEGRAM_ID = 5105508597
@@ -65,21 +77,30 @@ def is_user_in_database(user_id: int) -> bool:
 def is_admin(user_id: int) -> bool:
     return user_id == ADMIN_TELEGRAM_ID
 
-
-st.set_page_config(
-    page_title="Psychologist Bot Dashboard",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
 hide_streamlit_elements()
 
 st.title("🧠 Psychologist Bot Dashboard")
-
+if not cookies.ready():
+    st.stop()
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
     st.session_state.user_id = None
     st.session_state.is_admin = False
+    st.session_state.logout_forced = False
+
+if not st.session_state.authenticated and not st.session_state.logout_forced:
+    cookie_user_id = cookies.get('user_id')
+    if cookie_user_id:
+        try:
+            telegram_id = int(cookie_user_id)
+            if is_user_in_database(telegram_id):
+                st.session_state.authenticated = True
+                st.session_state.user_id = telegram_id
+                st.session_state.is_admin = is_admin(telegram_id)
+        except (ValueError,TypeError):
+            if 'user_id' in cookies:
+                del cookies['user_id']
+            cookies.save()
 
 if not st.session_state.authenticated:
     st.markdown("---")
@@ -94,6 +115,7 @@ if not st.session_state.authenticated:
         submit_button = st.form_submit_button("Войти")
         
         if submit_button:
+            
             try:
                 telegram_id = int(telegram_id_input)
                 
@@ -101,6 +123,9 @@ if not st.session_state.authenticated:
                     st.session_state.authenticated = True
                     st.session_state.user_id = telegram_id
                     st.session_state.is_admin = is_admin(telegram_id)
+                    st.session_state.logout_forced = False
+                    cookies['user_id'] = str(telegram_id)
+                    cookies.save()
                     st.success(f"✅ Добро пожаловать! (ID: {telegram_id})")
                     st.rerun()
                 else:
@@ -115,9 +140,14 @@ else:
     col1, col2 = st.columns([0.9, 0.1])
     with col2:
         if st.button("🚪 Выход", key="logout_button"):
+            
+            if 'user_id' in cookies:
+                del cookies['user_id']
+            cookies.save()
             st.session_state.authenticated = False
             st.session_state.user_id = None
             st.session_state.is_admin = False
+            st.session_state.logout_forced = True
             st.rerun()
     
     if st.session_state.is_admin:

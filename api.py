@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 
+
 DB_PATH = "psychologist_bot.db"
 
 def get_db_connection():
@@ -44,12 +45,28 @@ def get_all_mood_entries(user_id: int) -> List[Dict[str, Any]]:
     conn.close()
     return data
 
+def save_mood_entry(user_id: int, mood_score: int, trigger_text: str, thought_text: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    timestamp = datetime.now().isoformat()
+    cursor.execute("""
+        INSERT INTO mood_entries (user_id, timestamp, mood_score, trigger_text, thought_text)
+        VALUES (?, ?, ?, ?, ?)
+    """, (user_id, timestamp, mood_score, trigger_text, thought_text))
+    conn.commit()
+    conn.close()
 
 class User(BaseModel):
     user_id: int
     chat_id: int
     username: Optional[str] = None
     last_report_date: Optional[str] = None
+
+class MoodEntryRequest(BaseModel):
+    user_id: int
+    mood_score: int
+    trigger_text: Optional[str] = None
+    thought_text: Optional[str] = None
 
 class MoodEntry(BaseModel):
     timestamp: str
@@ -64,7 +81,22 @@ class UserStats(BaseModel):
     first_entry_date: Optional[str] = None
     last_entry_date: Optional[str] = None
 
+
 app = FastAPI(title="Psychologist Bot Worker API")
+
+@app.post("/mood_entry", status_code=201, summary="Submit a new mood entry")
+def create_mood_entry(entry: MoodEntryRequest):
+    if get_user_data(entry.user_id) is None:
+        raise HTTPException(status_code=404, detail="User not found. Cannot save mood entry.")
+    
+    save_mood_entry(
+        user_id=entry.user_id,
+        mood_score=entry.mood_score,
+        trigger_text=entry.trigger_text,
+        thought_text=entry.thought_text
+    )
+    
+    return {"message": "Mood entry successfully saved."}
 
 @app.get("/users", response_model=List[User], summary="Get all registered users")
 def read_users():
