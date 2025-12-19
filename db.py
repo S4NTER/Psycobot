@@ -48,13 +48,28 @@ def register_user(user_id: int, chat_id: int, username: str = None):
             user_id INTEGER PRIMARY KEY,
             chat_id INTEGER NOT NULL,
             username TEXT
+            balance INTEGER NOT NULL
         )
     """)
 
     cursor.execute("""
-        INSERT OR REPLACE INTO users (user_id, chat_id, username)
-        VALUES (?, ?, ?)
-    """, (user_id, chat_id, username))
+        INSERT OR REPLACE INTO users (user_id, chat_id, username, balance)
+        VALUES (?, ?, ?, ?)
+    """, (user_id, chat_id, username, 0))
+
+    conn.commit()
+    conn.close()
+
+
+def set_balance(user_id: int, balance: int):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+            UPDATE users 
+            SET balance = ?
+            WHERE id = ?; 
+        """, (balance, user_id))
 
     conn.commit()
     conn.close()
