@@ -1,6 +1,10 @@
 from aiogram.types import InlineKeyboardButton, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
+def get_start_menu():
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="Введите пароль для последующей регистрации", callback_data="password"))
+
 
 def get_main_menu_keyboard():
     builder = InlineKeyboardBuilder()

@@ -32,7 +32,7 @@ async def command_start_handler(message: types.Message):
     db.register_user(user_id, chat_id, username)
 
     welcome_text = texts.WELCOME_TEXT.format(name=message.from_user.full_name)
-    await message.answer(welcome_text, reply_markup=keyboards.get_main_menu_keyboard())
+    await message.answer(welcome_text, reply_markup=keyboards.get_start_menu())
 
 async def command_track_handler(message: types.Message, state: FSMContext):
     await state.set_state(Tracking.waiting_for_mood)
@@ -137,6 +137,9 @@ async def callback_query_handler(callback: types.CallbackQuery, state: FSMContex
             text=texts.WELCOME_TEXT,
             reply_markup=keyboards.get_main_menu_keyboard()
         )
+    elif action == "password":
+        await callback.answer("Запоминаю пароль")
+        await callback.message.answer(apply_password(callback.message, callback.from_user.id))
     elif action == "payment":
         await callback.answer("Открываю оплату")
         await send_invoice_handler(callback.message)
@@ -223,3 +226,8 @@ async def show_payment_message(message: types.Message):
 
 async def command_ai_advice_command_handler(message: types.Message):
     await show_payment_message(message)
+
+async def apply_password(message: types.Message, user_id: int):
+    password = message.text
+    set_password(user_id)
+    await message.answer(text="вы регнулись", reply_markup=keyboards.get_start_menu())
