@@ -18,6 +18,14 @@ from AI import ask_gpt
 logger = logging.getLogger(__name__)
 db.initialize_db()
 
+class Tracking(StatesGroup):
+    waiting_for_mood = State()
+    waiting_for_trigger = State()
+    waiting_for_thought = State()
+
+
+class Reg(StatesGroup):
+    wait_for_pass = State()
 
 async def delete_previous_bot_message(bot: Bot, chat_id: int, state: FSMContext):
     data = await state.get_data()
@@ -46,17 +54,6 @@ async def send_and_store_message(message: types.Message, state: FSMContext, text
     )
     await state.update_data(bot_message_id=msg.message_id)
     return msg
-
-
-class Tracking(StatesGroup):
-    waiting_for_mood = State()
-    waiting_for_trigger = State()
-    waiting_for_thought = State()
-
-
-class Reg(StatesGroup):
-    wait_for_pass = State()
-
 
 async def command_start_handler(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
