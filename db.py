@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime
 from config import DB_PATH
-
+import bcrypt
 
 def initialize_db():
     conn = sqlite3.connect(DB_PATH)
@@ -65,11 +65,14 @@ def set_password(user_id: int, password: str):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
+    passw = password.encode('utf-8')
+    hash_pass = bcrypt.hashpw(passw, bcrypt.gensalt()).decode('utf-8')
+
     cursor.execute("""
             UPDATE users 
             SET password = ?
             WHERE user_id = ?; 
-    """, (password, user_id))
+    """, (hash_pass, user_id))
 
     conn.commit()
     conn.close()
