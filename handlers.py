@@ -177,6 +177,9 @@ async def process_trigger(message: types.Message, state: FSMContext):
     await state.set_state(Tracking.waiting_for_thought)
 
 
+import asyncio
+
+
 async def process_thought(message: types.Message, state: FSMContext):
     try:
         await message.delete()
@@ -203,7 +206,15 @@ async def process_thought(message: types.Message, state: FSMContext):
         thought=thought_text
     )
 
-    await message.answer(saved_message, reply_markup=keyboards.get_main_menu_keyboard())
+    balance = db.get_balance(message.from_user.id)
+    menu_text = texts.MAIN_MENU_TEXT.format(balance=balance)
+    saved_msg = await message.answer(saved_message)
+    menu_msg = await message.answer(menu_text, parse_mode="Markdown", reply_markup=keyboards.get_main_menu_keyboard())
+    await asyncio.sleep(2)
+    try:
+        await saved_msg.delete()
+    except Exception as e:
+        logger.error(f"Не удалось удалить сообщение о сохранении: {e}")
 
 
 async def command_report_handler(message: types.Message, user_id: int):
@@ -267,16 +278,15 @@ async def callback_query_handler(callback: types.CallbackQuery, state: FSMContex
             logger.error(f"Failed to delete callback message: {e}")
         await send_invoice_handler(callback.message, state)
 
+
     elif action == "back_from_invoice":
         await callback.answer("Возвращаюсь назад")
         data = await state.get_data()
-
         messages_to_try_delete = [
             data.get('invoice_message_id'),
             data.get('back_message_id'),
             data.get('payment_request_message_id'),
         ]
-
         for msg_id in messages_to_try_delete:
             if msg_id:
                 try:
@@ -284,9 +294,8 @@ async def callback_query_handler(callback: types.CallbackQuery, state: FSMContex
                         chat_id=callback.message.chat.id,
                         message_id=msg_id
                     )
-                    logger.info(f"Удалили сообщение {msg_id}")
                 except Exception as e:
-                    logger.debug(f"Сообщение {msg_id} уже удалено или не существует: {e}")
+                    logger.debug(f"Сообщение {msg_id} уже удалено: {e}")
 
         await state.update_data(
             invoice_message_id=None,
@@ -294,13 +303,15 @@ async def callback_query_handler(callback: types.CallbackQuery, state: FSMContex
             payment_request_message_id=None
         )
 
+        user_id = callback.from_user.id
+        balance = db.get_balance(user_id)
+        menu_text = texts.MAIN_MENU_TEXT.format(balance=balance)
         await callback.message.answer(
-            text=texts.MAIN_MENU_TEXT,
+            text=menu_text,
             parse_mode="Markdown",
             reply_markup=keyboards.get_main_menu_keyboard()
         )
         return
-
 
     elif action == "track":
         await callback.answer("Начинаю запись настроения")
@@ -318,18 +329,22 @@ async def callback_query_handler(callback: types.CallbackQuery, state: FSMContex
             logger.error(f"Failed to delete callback message: {e}")
         await command_report_handler(callback.message, callback.from_user.id)
 
+
     elif action == "back_to_menu":
         await callback.answer("Возвращаюсь в меню")
         try:
             await callback.message.delete()
         except Exception as e:
             logger.error(f"Failed to delete callback message: {e}")
+
+        user_id = callback.from_user.id
+        balance = db.get_balance(user_id)
+        menu_text = texts.MAIN_MENU_TEXT.format(balance=balance)
         await callback.message.answer(
-            text=texts.MAIN_MENU_TEXT,
+            text=menu_text,
             parse_mode="Markdown",
             reply_markup=keyboards.get_main_menu_keyboard()
         )
-
     elif action == "help":
         await callback.answer("Открываю справку")
         try:
@@ -427,12 +442,12 @@ async def success_payment_handler(message: types.Message, state: FSMContext):
     curr_balance = db.get_balance(user_id)
     curr_balance += 1
     db.set_balance(user_id, curr_balance)
-
+    new_balance = db.get_balance(user_id)
     await message.answer(
-        "✅ Оплата прошла успешно! Теперь у вас есть доступ к AI-советам.",
+        f"✅ Оплата прошла успешно! Теперь у вас есть доступ к AI-советам.\n\n"
+        f"💰 Ваш баланс: {new_balance} звезд(ы)",
         reply_markup=keyboards.get_ai_access_keyboard()
     )
-
     await state.update_data(
         invoice_message_id=None,
         back_message_id=None,
@@ -441,10 +456,7 @@ async def success_payment_handler(message: types.Message, state: FSMContext):
 
 
 async def check_balance(message: types.Message, user_id: int, state: FSMContext = None):
-    print(f"check_balance вызван для user_id: {user_id}")
     curr_balance = db.get_balance(user_id)
-    print(f"Текущий баланс: {curr_balance}")
-
     if curr_balance >= 1:
         start_date = datetime.now() - timedelta(days=1)
         data = db.get_weekly_data(user_id, start_date)
@@ -470,7 +482,6 @@ async def check_balance(message: types.Message, user_id: int, state: FSMContext 
 
         curr_balance -= 1
         db.set_balance(user_id, curr_balance)
-        print(f"Новый баланс после списания: {db.get_balance(user_id)}")
         return
     else:
         payment_msg = await message.answer(
@@ -533,6 +544,6 @@ async def apply_password(message: types.Message, state: FSMContext):
     name = message.from_user.first_name
     if message.from_user.last_name:
         name = f"{name} {message.from_user.last_name}"
-
-    welcome_message = texts.WELCOME_TEXT.format(name=name)
+    balance = db.get_balance(user_id)
+    welcome_message = texts.WELCOME_TEXT.format(name=name, balance = balance)
     await message.answer(welcome_message, reply_markup=keyboards.get_main_menu_keyboard())
