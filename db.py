@@ -47,7 +47,7 @@ def register_user(user_id: int, chat_id: int, username: str = None):
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
             chat_id INTEGER NOT NULL,
-            username TEXT
+            username TEXT,
             balance INTEGER NOT NULL
         )
     """)
@@ -73,6 +73,20 @@ def set_balance(user_id: int, balance: int):
 
     conn.commit()
     conn.close()
+
+def get_balance(user_id: int):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+             SECECT balance FROM users WHERE user_id  = ?
+        """,(user_id))
+
+    balance = cursor.fetchone()
+    conn.commit()
+    conn.close()
+
+    return balance
 
 
 def get_user_data(user_id: int):
