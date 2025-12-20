@@ -77,6 +77,19 @@ def set_password(user_id: int, password: str):
     conn.commit()
     conn.close()
 
+def get_password(user_id: int):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+             SELECT password FROM users WHERE user_id = ?
+    """, (user_id,))
+
+    password = cursor.fetchone()
+    conn.commit()
+    conn.close()
+
+    return password[0].encode('utf-8')
 
 def set_balance(user_id: int, balance: int):
     conn = sqlite3.connect(DB_PATH)
