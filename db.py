@@ -23,7 +23,8 @@ def initialize_db():
                 user_id INTEGER PRIMARY KEY,
                 chat_id INTEGER NOT NULL,
                 username TEXT,
-                balance INTEGER DEFAULT 0
+                balance INTEGER DEFAULT 0,
+                password TEXT NOT NULL
             )
         """)
 
@@ -47,14 +48,28 @@ def save_entry(user_id: int, mood_score: int, trigger_text: str, thought_text: s
     print(f"Запись сохранена для пользователя {user_id}")
 
 
-def register_user(user_id: int, chat_id: int, username: str = None):
+def register_user(user_id: int, chat_id: int, username: str = None, password: str = None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT OR REPLACE INTO users (user_id, chat_id, username, balance)
-        VALUES (?, ?, ?, ?)
-    """, (user_id, chat_id, username, get_balance(user_id)))
+        INSERT OR REPLACE INTO users (user_id, chat_id, username, balance, password)
+        VALUES (?, ?, ?, ?, ?)
+    """, (user_id, chat_id, username, get_balance(user_id), password))
+
+    conn.commit()
+    conn.close()
+
+
+def set_password(user_id: int, password: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+            UPDATE users 
+            SET password = ?
+            WHERE user_id = ?; 
+    """, (password, user_id))
 
     conn.commit()
     conn.close()
@@ -119,6 +134,7 @@ def get_weekly_data(user_id: int, start_date: datetime):
 
     data = cursor.fetchall()
     conn.close()
+
     result = []
     for row in data:
         result.append({
@@ -127,6 +143,7 @@ def get_weekly_data(user_id: int, start_date: datetime):
             'trigger_text': row[2] if row[2] else '',
             'thought_text': row[3] if row[3] else ''
         })
+
     return result
 
 
