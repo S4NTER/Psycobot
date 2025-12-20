@@ -23,8 +23,8 @@ def initialize_db():
                 user_id INTEGER PRIMARY KEY,
                 chat_id INTEGER NOT NULL,
                 username TEXT,
-                balance INTEGER DEFAULT 0,
-                password TEXT NOT NULL
+                balance INTEGER DEFAULT 3,
+                password TEXT
             )
         """)
 
@@ -48,14 +48,14 @@ def save_entry(user_id: int, mood_score: int, trigger_text: str, thought_text: s
     print(f"Запись сохранена для пользователя {user_id}")
 
 
-def register_user(user_id: int, chat_id: int, username: str = None, password: str = None):
+def register_user(user_id: int, chat_id: int, username: str):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT OR REPLACE INTO users (user_id, chat_id, username, balance, password)
-        VALUES (?, ?, ?, ?, ?)
-    """, (user_id, chat_id, username, get_balance(user_id), password))
+        INSERT OR REPLACE INTO users (user_id, chat_id, username, balance)
+        VALUES (?, ?, ?, ?)
+    """, (user_id, chat_id, username, 3))
 
     conn.commit()
     conn.close()

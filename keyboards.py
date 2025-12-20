@@ -1,11 +1,7 @@
 from aiogram.types import InlineKeyboardButton, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-
-def get_start_menu():
-    builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text="Введите пароль для последующей регистрации", callback_data="password"))
-
-
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram import types
 def get_main_menu_keyboard():
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="📝 Записать настроение", callback_data="track"))
@@ -42,7 +38,7 @@ def get_mood_keyboard():
 def get_payment_keyboard():
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="Оплатить 1 ⭐", callback_data="payment"))
-    builder.row(InlineKeyboardButton(text="🔙 Назад в меню", callback_data="cancel_payment"))
+    builder.row(InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu"))
     return builder.as_markup()
 
 
@@ -51,3 +47,10 @@ def get_ai_access_keyboard():
     builder.row(InlineKeyboardButton(text="🤖 Получить AI-совет", callback_data="ai_advice"))
     builder.row(InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu"))
     return builder.as_markup()
+
+def get_invoice_keyboard():
+    buttons = [
+        [types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_from_invoice")]
+    ]
+    keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard
