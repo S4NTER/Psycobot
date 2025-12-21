@@ -4,6 +4,7 @@ from typing import List, Optional, Dict, Any
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+import bcrypt
 
 
 
@@ -15,17 +16,17 @@ def get_db_connection():
 def get_user_data(user_id: int) -> Optional[Dict[str, Any]]:
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT user_id, chat_id, username, last_report_date FROM users WHERE user_id = ?", (user_id,))
+    cursor.execute("SELECT user_id, chat_id, username, balance, password FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
     if row:
-        return {'user_id': row[0], 'chat_id': row[1], 'username': row[2], 'last_report_date': row[3]}
+        return {'user_id': row[0], 'chat_id': row[1], 'username': row[2], 'balance': row[3], 'password':row[4]}
     return None
 
 def get_all_users_data() -> List[Dict[str, Any]]:
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT user_id, chat_id, username, last_report_date FROM users")
+    cursor.execute("SELECT user_id, chat_id, username, balance FROM users")
     columns = [desc[0] for desc in cursor.description]
     data = [dict(zip(columns, row)) for row in cursor.fetchall()]
     conn.close()
@@ -60,7 +61,7 @@ class User(BaseModel):
     user_id: int
     chat_id: int
     username: Optional[str] = None
-    last_report_date: Optional[str] = None
+    password: Optional[str] = None
 
 class MoodEntryRequest(BaseModel):
     user_id: int
@@ -150,3 +151,32 @@ def get_user_stats(user_id: int):
         last_entry_date=last_entry_date
     )
 
+
+class LoginRequest(BaseModel):
+    user_id: int
+    password: str
+
+
+@app.post("/login")
+def login(request: LoginRequest):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT password FROM users WHERE user_id = ?", (request.user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row or not row[0]:
+        raise HTTPException(status_code=401, detail="Пользователь не найден")
+    stored_password = row[0]
+    if bcrypt.checkpw(request.password.encode('utf-8'), stored_password.encode('utf-8')):
+        return {"status": "success", "user_id": request.user_id}
+    else:
+        raise HTTPException(status_code=401, detail="Неверный пароль")
+@app.post("/debug_login")
+def debug_login(request: LoginRequest):
+    return {
+        "received": {
+            "user_id": request.user_id,
+            "password_length": len(request.password),
+        },
+        "message": "Данные получены"
+    }

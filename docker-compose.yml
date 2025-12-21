@@ -20,6 +20,8 @@ services:
       - "8501:8501"
     environment:
       - API_BASE_URL=http://api:8000
+      - Cookies_password="my_secret_password"
+      - ADMIN_ID=5105508597
     networks:
       - bot_network
     depends_on:

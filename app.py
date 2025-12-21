@@ -1,4 +1,6 @@
 import streamlit as st
+import db
+
 st.set_page_config(
     page_title="Psychologist Bot Dashboard",
     layout="wide",
@@ -13,12 +15,12 @@ import time
 from streamlit_cookies_manager import EncryptedCookieManager
 cookies = EncryptedCookieManager(
     prefix="psychobot/",
-    password="my_secret_password"
+    password=os.environ.get("Cookies_password")
 )
 
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://api:8000")
-ADMIN_TELEGRAM_ID = 5105508597
+ADMIN_TELEGRAM_ID = int(os.environ.get("ADMIN_ID"))
 
 def hide_streamlit_elements():
     hide_css = """
@@ -60,7 +62,8 @@ def get_user_data(user_id):
     user_profile = get_api_data(f"users/{user_id}")
     user_stats = get_api_data(f"stats/{user_id}")
     user_entries = get_api_data(f"mood_entries/{user_id}")
-    return user_profile, user_stats, user_entries
+    #user_balance = get_api_data(f"balance/{user_id}")
+    return user_profile, user_stats, user_entries#, user_balance
 
 def get_all_users():
     return get_api_data("users")
@@ -107,19 +110,19 @@ if not st.session_state.authenticated:
     st.subheader("🔐 Вход в систему")
     
     with st.form("login_form"):
-        telegram_id_input = st.text_input(
-            "Введите ваш Telegram ID:",
-            placeholder="Например: 1234567890",
-            type="default"
-        )
+        user_id = st.text_input("Введите ваш Login", type="default")
+        password = st.text_input("Введите пароль", type="password")
         submit_button = st.form_submit_button("Войти")
         
         if submit_button:
             
             try:
-                telegram_id = int(telegram_id_input)
-                
-                if is_user_in_database(telegram_id):
+                telegram_id = int(user_id)
+                response = requests.post(
+                    f"{API_BASE_URL}/login",
+                    json={"user_id": telegram_id, "password": password}
+                )
+                if response.status_code == 200:
                     st.session_state.authenticated = True
                     st.session_state.user_id = telegram_id
                     st.session_state.is_admin = is_admin(telegram_id)
@@ -129,9 +132,10 @@ if not st.session_state.authenticated:
                     st.success(f"✅ Добро пожаловать! (ID: {telegram_id})")
                     st.rerun()
                 else:
-                    st.error("❌ Telegram ID не найден в базе данных. Пожалуйста, убедитесь, что вы использовали бота.")
+                    st.error("❌ Неверный ID или пароль")
             except ValueError:
-                st.error("❌ Пожалуйста, введите корректный Telegram ID (только цифры).")
+                st.error("❌ Пожалуйста, введите корректный ID или пароль.")
+    st.stop()
     
     st.markdown("---")
     st.info("ℹ️ Введите ваш Telegram ID для доступа к вашей статистике.")
@@ -191,7 +195,7 @@ else:
                 with col2:
                     st.metric("Username", profile.get('username', 'N/A'))
                 with col3:
-                    st.metric("Last Report Date", profile.get('last_report_date', 'N/A'))
+                    st.metric("⭐ Balance", db.get_balance(selected_user_id))
                     
                 st.markdown("---")
                 
@@ -246,7 +250,7 @@ else:
             with col2:
                 st.metric("Username", profile.get('username', 'N/A'))
             with col3:
-                st.metric("Last Report Date", profile.get('last_report_date', 'N/A'))
+                st.metric("⭐ Balance", db.get_balance(st.session_state.user_id))
                 
             st.markdown("---")
             
