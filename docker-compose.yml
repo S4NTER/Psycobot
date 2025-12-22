@@ -1,0 +1,45 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: psychologist_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./psychologist_bot.db:/app/psychologist_bot.db
+    networks:
+      - bot_network
+  
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: psychologist_web
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://api:8000
+      - Cookies_password=my_secret_password
+      - ADMIN_ID=5105508597
+    networks:
+      - bot_network
+    depends_on:
+      - api
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: psych_bot
+    command: python main.py
+    volumes:
+      - .:/app
+    environment:
+      - API_BASE_URL=http://api:8000
+      - DB_PATH=psychologist_bot.db
+    restart: always
+    depends_on:
+      - api
+networks:
+  bot_network:
+    driver: bridge

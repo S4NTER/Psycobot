@@ -1,7 +1,4 @@
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
 YANDEX_GPT_API_KEY = os.getenv("YANDEX_GPT_API_KEY")
