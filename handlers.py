@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import FSInputFile, ReplyKeyboardRemove, LabeledPrice
 from aiogram import Bot
 from aiogram.types import PreCheckoutQuery
-
+import asyncio
 import db
 import texts
 import keyboards
@@ -255,7 +255,7 @@ async def callback_query_handler(callback: types.CallbackQuery, state: FSMContex
             await callback.message.delete()
         except Exception as e:
             logger.error(f"Failed to delete callback message: {e}")
-        await check_balance(callback.message, callback.from_user.id, state)  # Передаем state!
+        await check_balance(callback.message, callback.from_user.id, state)
 
     elif action == "pay_ai":
         await callback.answer("Принимаю оплату")
@@ -350,10 +350,6 @@ async def callback_query_handler(callback: types.CallbackQuery, state: FSMContex
         await help_handler(callback.message)
     else:
         await callback.answer(texts.ERRORS["unknown_command"])
-
-async def track_from_button_handler(message: types.Message, state: FSMContext):
-    await send_and_store_message(message=message,state=state,text=texts.MOOD_QUESTION,reply_markup=keyboards.get_mood_keyboard())
-    await state.set_state(Tracking.waiting_for_mood)
 
 
 async def safe_delete_message(bot, chat_id, message_id, description=""):
