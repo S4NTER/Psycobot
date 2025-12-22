@@ -325,35 +325,24 @@ async def callback_query_handler(callback: types.CallbackQuery, state: FSMContex
             logger.error(f"Failed to delete callback message: {e}")
         await command_report_handler(callback.message, callback.from_user.id)
 
+
     elif action == "back_to_menu":
         await callback.answer("Возвращаюсь в меню")
         data = await state.get_data()
-        messages_to_delete = [
-            data.get('no_data_message_id'),
-            data.get('payment_request_message_id'),
-            data.get('invoice_message_id'),
-            data.get('back_message_id'),
-        ]
-        for msg_id in messages_to_delete:
-            if msg_id:
-                try:
-                    await callback.message.bot.delete_message(
-                        chat_id=callback.message.chat.id,
-                        message_id=msg_id
-                    )
-                except Exception as e:
-                    logger.debug(f"Сообщение {msg_id} уже удалено: {e}")
-        await state.update_data(
-            no_data_message_id=None,
-            payment_request_message_id=None,
-            invoice_message_id=None,
-            back_message_id=None
-        )
+        no_data_message_id = data.get('no_data_message_id')
+        if no_data_message_id:
+            try:
+                await callback.message.bot.delete_message(
+                    chat_id=callback.message.chat.id,
+                    message_id=no_data_message_id
+                )
+            except Exception as e:
+                logger.debug(f"Сообщение уже удалено: {e}")
+        await state.update_data(no_data_message_id=None)
         try:
             await callback.message.delete()
         except Exception as e:
             logger.error(f"Failed to delete callback message: {e}")
-
         user_id = callback.from_user.id
         balance = db.get_balance(user_id)
         menu_text = texts.MAIN_MENU_TEXT.format(balance=balance)
@@ -469,11 +458,9 @@ async def check_balance(message: types.Message, user_id: int, state: FSMContext 
                 texts.NO_RECENT_DATA,
                 reply_markup=keyboards.get_back_to_menu_keyboard()
             )
-
-        if state:
-            await state.update_data(no_data_message_id=no_data_msg.message_id)
-        return
-
+            if state:
+                await state.update_data(no_data_message_id=no_data_msg.message_id)
+            return
         latest_entry = data[-1]
         advice = await ask_gpt(
             mood_score=latest_entry['mood_score'],
@@ -487,12 +474,11 @@ async def check_balance(message: types.Message, user_id: int, state: FSMContext 
             thought=latest_entry['thought_text'],
             advice=advice
         )
-
         await message.answer(advice_message, reply_markup=keyboards.get_ai_keyboard())
-
         curr_balance -= 1
         db.set_balance(user_id, curr_balance)
         return
+
     else:
         payment_msg = await message.answer(
             "Недостаточно оплаченных запросов AI, пополните счет",
