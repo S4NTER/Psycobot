@@ -4,8 +4,7 @@ from datetime import timedelta, datetime
 from aiogram.fsm.state import State, StatesGroup
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from aiogram.types import FSInputFile, ReplyKeyboardRemove
-from aiogram.types import LabeledPrice
+from aiogram.types import FSInputFile, ReplyKeyboardRemove, LabeledPrice
 from aiogram import Bot
 from aiogram.types import PreCheckoutQuery
 
@@ -174,7 +173,7 @@ async def process_trigger(message: types.Message, state: FSMContext):
     await state.set_state(Tracking.waiting_for_thought)
 
 
-import asyncio
+
 
 
 async def process_thought(message: types.Message, state: FSMContext):
