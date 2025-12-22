@@ -22,8 +22,8 @@ async def ask_gpt(mood_score: int, trigger: str, thought: str):
         "modelUri": f"gpt://{YANDEX_GPT_FOLDER_ID}/yandexgpt-lite",
         "completionOptions": {
             "stream": False,
-            "temperature": 0.7,
-            "maxTokens": "300"
+            "temperature": 0.9,
+            "maxTokens": "1000"
         },
         "messages": [
             {"role": "system", "text": SYSTEM_PROMPT},

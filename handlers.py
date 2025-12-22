@@ -325,9 +325,30 @@ async def callback_query_handler(callback: types.CallbackQuery, state: FSMContex
             logger.error(f"Failed to delete callback message: {e}")
         await command_report_handler(callback.message, callback.from_user.id)
 
-
     elif action == "back_to_menu":
         await callback.answer("Возвращаюсь в меню")
+        data = await state.get_data()
+        messages_to_delete = [
+            data.get('no_data_message_id'),
+            data.get('payment_request_message_id'),
+            data.get('invoice_message_id'),
+            data.get('back_message_id'),
+        ]
+        for msg_id in messages_to_delete:
+            if msg_id:
+                try:
+                    await callback.message.bot.delete_message(
+                        chat_id=callback.message.chat.id,
+                        message_id=msg_id
+                    )
+                except Exception as e:
+                    logger.debug(f"Сообщение {msg_id} уже удалено: {e}")
+        await state.update_data(
+            no_data_message_id=None,
+            payment_request_message_id=None,
+            invoice_message_id=None,
+            back_message_id=None
+        )
         try:
             await callback.message.delete()
         except Exception as e:
@@ -341,15 +362,6 @@ async def callback_query_handler(callback: types.CallbackQuery, state: FSMContex
             parse_mode="Markdown",
             reply_markup=keyboards.get_main_menu_keyboard()
         )
-    elif action == "help":
-        await callback.answer("Открываю справку")
-        try:
-            await callback.message.delete()
-        except Exception as e:
-            logger.error(f"Failed to delete callback message: {e}")
-        await help_handler(callback.message)
-    else:
-        await callback.answer(texts.ERRORS["unknown_command"])
 
 
 async def safe_delete_message(bot, chat_id, message_id, description=""):
@@ -453,8 +465,14 @@ async def check_balance(message: types.Message, user_id: int, state: FSMContext 
         start_date = datetime.now() - timedelta(days=1)
         data = db.get_weekly_data(user_id, start_date)
         if not data:
-            await message.answer(texts.NO_RECENT_DATA)
-            return
+            no_data_msg = await message.answer(
+                texts.NO_RECENT_DATA,
+                reply_markup=keyboards.get_back_to_menu_keyboard()
+            )
+
+        if state:
+            await state.update_data(no_data_message_id=no_data_msg.message_id)
+        return
 
         latest_entry = data[-1]
         advice = await ask_gpt(
@@ -484,17 +502,6 @@ async def check_balance(message: types.Message, user_id: int, state: FSMContext 
             await state.update_data(payment_request_message_id=payment_msg.message_id)
         return
 
-async def show_payment_message(message: types.Message):
-    await message.answer(
-        texts.PAYMENT_REQUEST_TEXT,
-        parse_mode="Markdown",
-        reply_markup=keyboards.get_payment_keyboard()
-    )
-
-
-async def command_ai_advice_command_handler(message: types.Message):
-    await show_payment_message(message)
-
 
 async def apply_password(message: types.Message, state: FSMContext):
     password = message.text.strip()
@@ -512,9 +519,7 @@ async def apply_password(message: types.Message, state: FSMContext):
                 await message.bot.edit_message_text(
                     chat_id=message.chat.id,
                     message_id=bot_message_id,
-                    text="❌ Пароль должен содержать минимум 6 символов. Попробуйте еще раз:\n\n" + texts.SET_PASS_TEXT,
-                    reply_markup=ReplyKeyboardRemove()
-                )
+                    text="❌ Пароль должен содержать минимум 6 символов. Попробуйте еще раз:\n\n" + texts.SET_PASS_TEXT)
             except Exception as e:
                 logger.error(f"Failed to edit message: {e}")
         return

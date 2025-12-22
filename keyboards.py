@@ -54,3 +54,8 @@ def get_invoice_keyboard():
     ]
     keyboard = types.InlineKeyboardMarkup(inline_keyboard=buttons)
     return keyboard
+
+def get_back_to_menu_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu"))
+    return builder.as_markup()
