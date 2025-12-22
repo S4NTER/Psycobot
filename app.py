@@ -93,7 +93,7 @@ if 'authenticated' not in st.session_state:
 
 if not st.session_state.authenticated and not st.session_state.logout_forced:
     cookie_user_id = cookies.get('user_id')
-    if cookie_user_id:
+    if cookie_user_id and str(cookie_user_id).strip() != "":
         try:
             telegram_id = int(cookie_user_id)
             if is_user_in_database(telegram_id):
@@ -146,7 +146,7 @@ else:
         if st.button("🚪 Выход", key="logout_button"):
             
             if 'user_id' in cookies:
-                del cookies['user_id']
+                cookies['user_id'] = ""
             cookies.save()
             st.session_state.authenticated = False
             st.session_state.user_id = None
